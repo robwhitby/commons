@@ -1,4 +1,4 @@
-xquery version "1.0";
+xquery version "1.0-ml";
 (:~
  :
  : Copyright 2007 Ryan Grimm
@@ -31,6 +31,7 @@ xquery version "1.0";
  : @author Ryan Grimm (grimm@xqdev.com)
  : @version 0.3
  :
+ : Modified by Rob Whitby November 2011 to match nodes by id (requries 1.0-ml)
  :)
 
 module namespace mem = "http://xqdev.com/in-mem-update";
@@ -44,7 +45,7 @@ declare function mem:node-insert-child(
 	$newNode as node()*
 ) as node()
 {
-	mem:_process(root($parentNode), $parentNode, $newNode, "insert-child")
+	mem:_process(root($parentNode), generate-id($parentNode), $newNode, "insert-child")
 };
 
 (:
@@ -55,7 +56,7 @@ declare function mem:node-insert-before(
 	$newNode as node()*
 ) as node()
 {
-	mem:_process(root($sibling), $sibling, $newNode, "insert-before")
+	mem:_process(root($sibling), generate-id($sibling), $newNode, "insert-before")
 };
 
 (:
@@ -66,7 +67,7 @@ declare function mem:node-insert-after(
 	$newNode as node()*
 ) as node()
 {
-	mem:_process(root($sibling), $sibling, $newNode, "insert-after")
+	mem:_process(root($sibling), generate-id($sibling), $newNode, "insert-after")
 };
 
 (:
@@ -77,7 +78,8 @@ declare function mem:node-replace(
 	$newNode as node()
 ) as node()
 {
-	mem:_process(root($goneNodes[1]), $goneNodes, $newNode, "delete")
+	let $goneIds := for $gone in $goneNodes return generate-id($gone)
+	return mem:_process(root($goneNodes[1]), $goneIds, $newNode, "delete")
 };
 
 (:
@@ -87,7 +89,8 @@ declare function mem:node-delete(
 	$goneNodes as node()*
 ) as node()?
 {
-	mem:_process(root($goneNodes[1]), $goneNodes, (), "delete")
+	let $goneIds := for $gone in $goneNodes return generate-id($gone)
+	return mem:_process(root($goneNodes[1]), $goneIds, (), "delete")
 };
 
 (: Private functions :)
@@ -97,14 +100,14 @@ declare function mem:node-delete(
 	handeled depending on the mode.  Don't feel bad if you don't quite
 	understand this code.
 :)
-declare function mem:_process(
+declare private function mem:_process(
 	$node as node(),
-	$modifierNodes as node()*,
+	$modifierNodeIds as xs:string*,
 	$newNode as node()*,
 	$mode as xs:string
 ) as node()*
 {
-	if (some $gone in $modifierNodes satisfies $node is $gone)
+	if (generate-id($node) = $modifierNodeIds)
 	then
 		 if ($mode eq "delete")
 		 then
@@ -133,14 +136,14 @@ declare function mem:_process(
 			  {
 					for $child in ($node/@*, $node/node())
 					return
-					  mem:_process($child, $modifierNodes, $newNode, $mode)
+					  mem:_process($child, $modifierNodeIds, $newNode, $mode)
 			  }
 			case document-node() return
 			  document
 			  {
 					for $child in $node/node()
 					return
-						 mem:_process($child, $modifierNodes, $newNode, $mode)
+						 mem:_process($child, $modifierNodeIds, $newNode, $mode)
 			  }
 			default return
 			  $node
