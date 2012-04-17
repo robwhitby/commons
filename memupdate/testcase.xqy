@@ -10,10 +10,16 @@ let $doc := document {
         <bar>bar</bar>
         <bar>another bar</bar>
       </foo>
-      {for $x in (1 to 500) return <x>x{for $y in (1 to 10) return <y>y</y>}</x>}
+      { for $x in 1 to 1000 return <x>x{ for $y in 1 to 10 return <y>y</y> }</x> }
      </sub-root>
   </root>
 }
 
 let $result := mem:node-delete($doc//bar)
-return (xdmp:elapsed-time(), $result)
+return xdmp:elapsed-time()
+
+(:
+timings on my laptop:
+new: 0.25s
+old: 13.8s
+:)
